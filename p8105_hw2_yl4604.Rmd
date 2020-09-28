@@ -1,0 +1,191 @@
+---
+title: "p8105_hw2_yl4604"
+author: "Yu"
+date: "September 25, 2020"
+output: github_document
+---
+
+##Problem 1
+
+```{r}
+library(tidyverse)
+library(readxl)
+```
+
+
+Import and clean the trash wheel dataset
+
+```{r}
+trashwheel_df = 
+  read_xlsx('./Trash-Wheel-Collection-Totals-8-6-19.xlsx',
+            sheet = 'Mr. Trash Wheel', 
+            range = cell_cols('A:N')) %>% 
+            janitor::clean_names() %>% 
+            drop_na(dumpster) %>% 
+            mutate(sports_balls = round(sports_balls)) %>%
+            mutate(sports_balls = as.integer(sports_balls))
+
+```
+
+Import and clean data for 2017 and 2018
+```{r}
+df_2017 =
+  read_xlsx('./Trash-Wheel-Collection-Totals-8-6-19.xlsx', 
+            sheet = '2017 Precipitation', 
+            range = 'A2:B14') %>% 
+            janitor::clean_names() %>% 
+            mutate(year = 2017)
+
+df_2018 =
+  read_xlsx('./Trash-Wheel-Collection-Totals-8-6-19.xlsx', 
+            sheet = '2018 Precipitation', 
+            range = 'A2:B14') %>% 
+            janitor::clean_names() %>% 
+            mutate(year = 2018)
+  
+```
+ Join the two datasets
+ 
+```{r}
+df_2017_monthname = 
+  mutate(df_2017, month_name = month.name)
+df_2018_monthname = 
+  mutate(df_2018, month_name = month.name)
+df_2017_and_2018 = 
+  bind_rows(df_2017_monthname, df_2018_monthname)
+```
+ 
+This dataset contains information from the Mr.TRASHWHEEL TRASH COLLECTOR in Baltimore, Maryland. An trash enters the inner harbor, the trashwheel collects that trash, and sotre it in a sumpster. The dataset contaisn information on year, month, and trash collected, includes some specific kinds of trash.
+There are a total of `r nrow(trashwheel_df)` rows in our final dataset. 
+Additional data sheets include month precipitation data.
+
+
+##problem 2
+
+Import and clean the dataset
+
+```{r}
+nyc_transit_df = 
+  read_csv('./NYC_Transit_Subway_Entrance_And_Exit_Data.csv') %>% 
+  janitor::clean_names() %>% 
+  select(c(line:entry, vending, ada)) %>% 
+  mutate(entry = recode(entry, `YES` = TRUE, `NO` = FALSE)) %>% 
+  relocate(ada, vending)
+
+```
+
+This dataset contains information related to each entrance of NYC Transit. In the cleaning steps, I converted the variables names to more reasonable ones, and selected out variables that this problem focuses on. At the last step, I transfered the type of entry variable from character to logical.
+The resulting dataset's has `r nrow(nyc_transit_df)` rows and `r ncol(nyc_transit_df)`columns.
+The dataset is not tidy now because routes served is spread across 11 columns, which correspond to 11 different routes.
+
+There are total `r nrow(distinct(nyc_transit_df, line))*nrow(distinct(nyc_transit_df, station_name))` distinct stations.
+
+Filter out stations that are not ADA compliant.
+```{r}
+nyc_df_ada = 
+  filter(nyc_transit_df, ada == TRUE)
+```
+
+There are total `r nrow(distinct(nyc_df_ada, line))*nrow(distinct(nyc_df_ada, station_name))` stations are ADA compliant
+
+Filter stations entrances/exits without vending
+```{r}
+nyc_df_novending = 
+  filter(nyc_transit_df, vending != 'YES')
+```
+There are `r round(nrow(nyc_df_novending)/nrow(nyc_transit_df)*100, 2)`% station entrances/exits without vending allow entrance.
+
+
+Reformatting data
+```{r}
+
+nyc_longer_df = nyc_transit_df %>% 
+  mutate(route8 = as.character(route8), route9 = as.character(route9), route10 = as.character(route10), route11 = as.character(route11)) %>% 
+  pivot_longer(route1:route11, 
+               names_to = 'route_number',
+               values_to = 'route_name')
+# filter route A 
+nyc_a_df = 
+  filter(nyc_longer_df, route_name == 'A')
+
+# filter ADA compliant
+
+nyc_a_ada = 
+  filter(nyc_a_df, ada == TRUE)
+
+```
+
+There are total `r nrow(distinct(nyc_a_df, line))*nrow(distinct(nyc_a_df, station_name))` distinct stations serve the A train.
+Of the stations that serves the A train, `r nrow(nyc_a_ada)` are ADA compliant.
+
+
+##Problem 3
+
+Import and clean data in pols-month
+
+```{r}
+
+polsmonth_df = 
+  read_csv('./fivethirtyeight_datasets/pols-month.csv') %>% 
+  separate(mon, into = c('year','month','day'), sep = '-' ) %>% 
+  mutate(month = as.numeric(month)) %>%
+  mutate(month = month.abb[month]) %>% 
+  #mutate(president = recode(prez_gop, 0 = 'dem', 1 = 'gop')
+  mutate(president = case_when(
+                    (prez_gop == 0)&(prez_dem) == 1 ~ 'dem', 
+                    (prez_gop == 1)&(prez_dem) == 0 ~ 'gop')) %>% 
+  select(-c(prez_gop, prez_dem, day))
+```
+
+Import and clean data in snp
+
+```{r}
+month_df = tibble(
+  month = 1:12,
+  month_name = month.abb
+)
+snp_df = 
+  read_csv('./fivethirtyeight_datasets/snp.csv') %>% 
+  separate(date, into = c('month','day','year'), sep = '/' ) %>% 
+  mutate(month = as.numeric(month)) %>% 
+  left_join(month_df, by = 'month') %>% 
+  select(-month, -day) %>%  
+  #rename(month_name = month) %>% 
+  mutate(month = month_name) %>%
+  select(-month_name) %>% 
+  relocate(month)
+
+```
+
+Import and clean unemployment data
+
+```{r}
+unemployment = 
+  read_csv('./fivethirtyeight_datasets/unemployment.csv') %>%
+  pivot_longer(Jan:Dec, 
+               names_to = 'month',
+               values_to = 'unemployment_rate') %>% 
+  relocate(month) %>% 
+  janitor::clean_names() %>% 
+  mutate(year = as.character(year))
+
+  
+```
+
+Join the datasets!
+
+```{r}
+joined_df = polsmonth_df %>% 
+  left_join(snp_df, by = c('year','month')) %>% 
+  left_join(unemployment, by = c('year','month')) %>% 
+  mutate(year = as.numeric(year))
+
+
+```
+
+The first dataset polsmonth_df contains numbers of national politicians who are democratic or republican during the time period of Jan/1947-Jun/2015.
+The second dataset snp_df contains closing values of Standard & Poors stock market index through the time perios of Jan/1950 - Jul/2015.
+The third dataset unemolyment contains unemployment rate through the time period of Jan/1948 - Dec/2015
+
+
+The dimension of the resulting dataset is `r dim(joined_df)`, it contains observations through `r range(pull(joined_df, year))` . The names of the variables in the resulting dataset are `r names(joined_df)`

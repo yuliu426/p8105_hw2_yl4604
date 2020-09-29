@@ -78,15 +78,15 @@ This dataset contains information related to each entrance of NYC Transit. In th
 The resulting dataset's has `r nrow(nyc_transit_df)` rows and `r ncol(nyc_transit_df)`columns.
 The dataset is not tidy now because routes served is spread across 11 columns, which correspond to 11 different routes.
 
-There are total `r nrow(distinct(nyc_transit_df, line))*nrow(distinct(nyc_transit_df, station_name))` distinct stations.
-
+???1. There are total `r nrow(distinct(nyc_transit_df, line, station_name))` distinct stations. dinstinct(line, station_name)
+ disctinct
 Filter out stations that are not ADA compliant.
 ```{r}
 nyc_df_ada = 
   filter(nyc_transit_df, ada == TRUE)
 ```
 
-There are total `r nrow(distinct(nyc_df_ada, line))*nrow(distinct(nyc_df_ada, station_name))` stations are ADA compliant
+There are total `r nrow(distinct(nyc_df_ada, line, station_name))` stations are ADA compliant
 
 Filter stations entrances/exits without vending
 ```{r}
@@ -94,21 +94,25 @@ nyc_df_novending =
   filter(nyc_transit_df, vending != 'YES')
 # 1.stations? distinct stations or just stations?
 ```
-There are `r round(nrow(nyc_df_novending)/nrow(nyc_transit_df)*100, 2)`% station entrances/exits without vending allow entrance.
+
+Filter entrances.exits that allow entrance but do not have vending
+```{r}
+nyc_enter_novending = 
+  filter(nyc_df_novending, entry == TRUE)
+```
+
+There are `r round(nrow(nyc_enter_novending)/nrow(nyc_df_novending)*100, 2)`% station entrances/exits without vending allow entrance.
 
 
 Reformatting data
 ```{r}
-# 2.jeff: make sure the dataset is tidy before make the conversion.
-#Error: Can't combine `route1` <character> and `route8` <double>.
-#Run `rlang::last_error()` to see where the error occurred.
-
 nyc_longer_df = nyc_transit_df %>% 
-# 3.? mutate_at(mutate_at(vars(route8:route11), as.character)) %>%  how do I converse multipul variables data type ar once? using c(route8:route11)? [mutate_at(vars(route8:route11), as.character)]
-  mutate(route8 = as.character(route8), route9 = as.character(route9), route10 = as.character(route10), route11 = as.character(route11)) %>% 
+  mutate_at(vars(route8:route11), funs(as.character)) %>%  
+  #mutate(route8 = as.character(route8), route9 = as.character(route9), route10 = as.character(route10), route11 = as.character(route11)) %>% 
   pivot_longer(route1:route11, 
                names_to = 'route_number',
-               values_to = 'route_name')
+               values_to = 'route_name') 
+  
 # filter route A 
 nyc_a_df = 
   filter(nyc_longer_df, route_name == 'A')
@@ -120,8 +124,8 @@ nyc_a_ada =
 
 ```
 
-There are total `r nrow(distinct(nyc_a_df, line))*nrow(distinct(nyc_a_df, station_name))` distinct stations serve the A train.
-Of the stations that serves the A train, `r nrow(nyc_a_ada)` are ADA compliant.
+There are total `r nrow(distinct(nyc_a_df, line, station_name))` distinct stations serve the A train.
+Of the stations that serves the A train, `r nrow(distinct(nyc_a_ada, line, station_name))` are ADA compliant.
 
 
 ##Problem 3
@@ -135,10 +139,10 @@ polsmonth_df =
   separate(mon, into = c('year','month','day'), sep = '-' ) %>% 
   mutate(month = as.numeric(month)) %>%
   mutate(month = month.abb[month]) %>% 
-  # 4.? mutate(president = recode(prez_gop, 0 = 'dem',1 = 'gop')) %>% why this not working?
   mutate(president = case_when(
-                    (prez_gop == 0)&(prez_dem == 1) ~ 'dem', 
-                    (prez_gop == 1)&(prez_dem == 0) ~ 'gop')) %>% 
+                    prez_gop == 0 ~ 'dem', 
+                    prez_gop == 1 ~ 'gop',
+                    prez_gop == 2 ~ 'gop')) %>% 
   select(-c(prez_gop, prez_dem, day))
 ```
 

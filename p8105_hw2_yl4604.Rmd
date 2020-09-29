@@ -78,8 +78,8 @@ This dataset contains information related to each entrance of NYC Transit. In th
 The resulting dataset's has `r nrow(nyc_transit_df)` rows and `r ncol(nyc_transit_df)`columns.
 The dataset is not tidy now because routes served is spread across 11 columns, which correspond to 11 different routes.
 
-???1. There are total `r nrow(distinct(nyc_transit_df, line, station_name))` distinct stations. dinstinct(line, station_name)
- disctinct
+There are total `r nrow(distinct(nyc_transit_df, line, station_name))` distinct stations.   
+
 Filter out stations that are not ADA compliant.
 ```{r}
 nyc_df_ada = 
